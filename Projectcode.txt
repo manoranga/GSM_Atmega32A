@@ -1,0 +1,196 @@
+/*
+ * GccApplication1.c
+ *
+ * Created: 3/6/2017 7:22:38 PM
+ * Author : pro 5
+ */ 
+
+#include <avr/io.h>
+#include <util/delay.h>
+
+
+#include "lib/sim300/sim300.h"
+
+void sms1();
+void sms2();
+void sms3();
+void sms4();
+void sms5();
+void sms6();
+void Halt();
+uint8_t ref;
+int main(void)
+{
+	/*DDRD |= 1<<PIND5;
+	TCCR1A |= 1<<WGM11 | 1<<COM1A1 | 1<<COM1A0;
+	TCCR1B |= 1<<WGM13 | 1<<WGM12 | 1<<CS10;
+	ICR1 = 19999;
+	OCR1A = ICR1 - 900;*/
+	
+	
+	DDRA &=~(1<<PINA3);
+	DDRA &=~(1<<PINA4);
+	DDRA &=~(1<<PINA5);
+	
+	DDRB |= 1<<PINB0;
+	DDRB |= 1<<PINB1;
+	DDRB |= 1<<PINB2;
+	DDRB |= 1<<PINB5;
+	DDRB |= 1<<PINB6;
+	DDRB |= 1<<PINB7;
+	DDRA |=1<<PINA0;
+	DDRA |=1<<PINA1;
+	DDRD |= 1<<PIND6;
+	
+	PORTB &= ~(1<<PINB3);
+	PORTA &= ~(1<<PINA4);
+	PORTA &= ~(1<<PINA5);
+	
+	_delay_ms(5000);
+
+
+
+
+	_delay_ms(3000);
+	int8_t r= SIM300Init();
+	_delay_ms(3000);
+	
+
+	
+	//Wait for MSG
+	uint8_t id;
+	uint8_t     x=0;
+	int n=0;
+	UFlushBuffer();
+
+	while(1)
+	{
+		
+		x=0;
+		int8_t vx=1;
+		PORTD |= 1<<PIND6;
+		
+		while(SIM300WaitForMsg(&id)!=SIM300_OK)
+		{
+			x+=vx;
+			if(x==15 || x==0) vx=vx*-1;
+		}
+		_delay_ms(1000);
+
+		//Now read and display msg
+		
+		char msg[300];
+
+		r=SIM300ReadMsg(id,msg);
+
+		if(r==SIM300_OK)
+		{
+			PORTD &= ~(1<<PIND6);	
+			_delay_ms(1000);
+			////////////
+			int smsNumber= atoi(msg);
+			switch(smsNumber){
+				case 1:sms1();break;
+				case 2:sms2();break;
+				case 3:sms3();break;
+				case 4:sms4();break;
+				case 5:sms5();break;
+				case 6:sms6();break;
+			}
+			
+		}
+		_delay_ms(1000);
+		//Finally delete the msg
+		if (SIM300DeleteMsg(id)!=SIM300_OK)
+		{
+			
+			_delay_ms(3000);
+		}
+
+	}
+
+
+	Halt();
+}
+
+void Halt()
+{
+	while(1);
+}
+
+void sms1(){
+	PORTB |= 1<<PINB0; //door is opened
+	_delay_ms(1200);
+	PORTB &= ~(1<<PINB0); // door is half open	
+}
+void sms2(){
+	_delay_ms(100);
+	PORTB |= 1<<PINB1; //food
+	_delay_ms(3000);
+	PORTB &= ~(1<<PINB1);
+	_delay_ms(1000);
+	PORTB |= 1<<PINB2; //water
+	_delay_ms(4000);
+	PORTB &= ~(1<<PINB2);
+	_delay_ms(1000);
+	PORTB |= 1<<PINB5; //ir on
+	_delay_ms(3000);
+	while(1){
+		if (bit_is_clear(PINA,3))
+		{
+			_delay_ms(200);
+			PORTB &= ~(1<<PINB5); //ir off
+			_delay_ms(100);
+			PORTB |= 1<<PINB0; //door closed
+			_delay_ms(1500);
+			PORTB &= ~(1<<PINB0); // dora half closed
+			SIM300SendMsg("+94702337456","dog has come to the kennal...... !",&ref);
+			break;
+		}
+	}
+}
+void sms3(){
+	PORTB |= 1<<PINB7; //weight sensor on
+	_delay_ms(4000);
+	if (bit_is_set(PINA,4))
+	{
+		SIM300SendMsg("+94702337456","dog has eaten !",&ref);
+		}else{
+		SIM300SendMsg("+94702337456","dog hasn't eaten !",&ref);
+	}
+	_delay_ms(2000);
+	PORTB &= ~(1<<PINB7); //weight sensor off
+}
+void sms4(){
+	PORTB |= 1<<PINB6; //motion sensor on
+	_delay_ms(3000);
+	if (bit_is_clear(PINA,5))
+	{
+		SIM300SendMsg("+94702337456","dog is asleep or not in the kennal !",&ref);
+		_delay_ms(100);
+		PORTB &= ~(1<<PINB6); //motion sensor off
+		}else{
+		SIM300SendMsg("+94702337456","dog is inside the cage !",&ref);
+		_delay_ms(100);
+		PORTB &= ~(1<<PINB6); //motion sensor off
+	}
+}
+void sms5(){
+	//removes the foood
+	
+	PORTA |=1<<PINA0;
+	PORTA &=~(1<<PINA1);
+	_delay_ms(2000);
+	PORTA &=~(1<<PINA0);
+	PORTA |=1<<PINA1;
+	_delay_ms(2000);
+	PORTA &=~(1<<PINA1);
+}
+void sms6(){
+	//removes the water
+				
+	/*OCR1A = ICR1 - 800;
+	_delay_ms(5000);
+	OCR1A = ICR1 - 2200;
+	_delay_ms(5000);*/
+}
